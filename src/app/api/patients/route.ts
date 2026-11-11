@@ -1,0 +1,2 @@
+import {NextResponse} from 'next/server';import pool from '@/lib/db';export const runtime='nodejs';
+export async function GET(){try{const [patients]=await pool.query('SELECT subject_id,gender,anchor_age,anchor_year,anchor_year_group,unit_id FROM patients ORDER BY subject_id ASC');return NextResponse.json({success:true,total:(patients as any[]).length,patients})}catch(e){console.error('Patients API:',e);return NextResponse.json({success:false,message:'Unable to fetch patients. Check database connection and permissions.'},{status:500})}}

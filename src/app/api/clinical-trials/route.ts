@@ -1,0 +1,2 @@
+import {NextResponse} from 'next/server';import pool from '@/lib/db';export const runtime='nodejs';
+export async function GET(){try{const [trials]=await pool.query('SELECT trial_id,nct_id,title,phase,status,conditions,minimum_age,maximum_age,sex,enrollment FROM clinical_trial ORDER BY trial_id ASC');return NextResponse.json({success:true,total:(trials as any[]).length,trials})}catch(e){console.error('Clinical trials API:',e);return NextResponse.json({success:false,message:'Unable to fetch clinical trials. Check database connection and permissions.'},{status:500})}}

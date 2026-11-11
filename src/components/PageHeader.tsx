@@ -1,0 +1,1 @@
+export default function PageHeader({eyebrow,title,subtitle,action}:{eyebrow:string;title:string;subtitle:string;action?:React.ReactNode}){return <div className="topline"><div><div className="eyebrow">{eyebrow}</div><h1 className="page-title">{title}</h1><p className="sub">{subtitle}</p></div>{action}</div>}

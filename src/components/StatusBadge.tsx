@@ -1,0 +1,1 @@
+export default function StatusBadge({value}:{value?:string|null}){const s=(value||'PENDING').toUpperCase();const c=['ELIGIBLE','RECRUITING'].includes(s)?'good':['INELIGIBLE','TERMINATED'].includes(s)?'bad':'warn';return <span className={`badge ${c}`}>{s.replaceAll('_',' ')}</span>}
