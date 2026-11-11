@@ -6,7 +6,7 @@ Next.js + MySQL dashboard for patients, clinical trials, match results, and audi
 1. Extract the ZIP and open PowerShell in `TrialMatch_Complete`.
 2. Run `npm install`.
 3. Run `Copy-Item .env.example .env.local`.
-4. Edit `.env.local` with your MySQL credentials. Never share or commit this file.
+4. Edit `.env.local` with your MySQL credentials and a random `SESSION_SECRET` (see `.env.example`). Never share or commit this file.
 5. Ensure MySQL80 is running, then run `npm run dev`.
 6. Open http://localhost:3000.
 
@@ -62,3 +62,38 @@ After scoring, the Match Results page shows the semantic score instead of “Not
 - Exclusion criteria are not embedded, so a note that mentions an excluded condition cannot raise the score; but similarity alone cannot detect exclusions either.
 - Search is a brute-force scan, suitable for prototype-scale data. A larger deployment would move to MySQL 9 `VECTOR`, pgvector or a dedicated vector database with an ANN index.
 - `all-MiniLM-L6-v2` is a general-domain model, not clinically validated.
+
+## Sign-in and role-based access
+
+Every page and API route requires signing in, except `/login`. Sessions are an HttpOnly cookie signed with HMAC-SHA256 (`SESSION_SECRET`) and last 8 hours. Passwords are stored only as scrypt hashes. Five failed attempts lock an account for 15 minutes, and every sign-in, failure, lockout, logout and account change is written to `auth_event`.
+
+### Setup
+
+```powershell
+Get-Content sql\003_auth.sql | mysql -u root -p clinical_trial_matcher
+# add SESSION_SECRET to .env.local (command to generate one is in .env.example)
+node --env-file=.env.local scripts/create-user.mjs admin ADMIN "System Admin"
+npm run dev
+```
+
+Sign in at http://localhost:3000/login as `admin`, then create the other accounts on **Access & Security**. `create-user.mjs` can also reset a forgotten password.
+
+### Roles
+
+Web app roles mirror the database roles (`attending_clinician_role`, `clinical_researcher_role`, `compliance_officer_role`).
+
+| Page / API | ADMIN | CLINICIAN | RESEARCHER | COMPLIANCE |
+| --- | --- | --- | --- | --- |
+| Dashboard, Clinical Trials | ✓ | ✓ | ✓ | ✓ |
+| Match Results | ✓ | ✓ | ✓ (patient age hidden) | ✓ |
+| Patients, note search, embeddings, semantic scoring | ✓ | ✓ | – | – |
+| Audit Logs | ✓ | – | – | ✓ |
+| Access & Security: sign-in activity | ✓ | – | – | ✓ |
+| Access & Security: manage accounts | ✓ | – | – | – |
+
+Rules live in `src/lib/access.ts` and are enforced in `src/middleware.ts` for every request: pages redirect to `/login` or `/forbidden`, APIs return 401 or 403. Cross-site POST/PATCH requests are rejected. The sidebar only shows pages the role may open. Account changes (role change, disable, password reset) end that user's sessions on the next page load; admin actions re-check the database on every request.
+
+### Limits
+
+- The app still connects to MySQL with one account (`DB_USER`), so access between web roles is enforced by the app, not by MySQL grants. Connecting with one MySQL account per web role would add database-level enforcement.
+- Audit triggers record the MySQL account in `changed_by`, not the signed-in web user.
